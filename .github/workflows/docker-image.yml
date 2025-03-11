@@ -2,11 +2,14 @@ name: Docker 镜像构建
 
 on:
   push:
-    branches: [ "main" ]
 
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
+
+    env:
+      # 默认使用仓库名作为镜像名称
+      IMAGE_NAME: ${{ github.event.repository.name }}
 
     steps:
     - name: 检出代码
@@ -34,14 +37,20 @@ jobs:
       id: version
       run: echo "VERSION=$(date +%Y%m%d)-${GITHUB_SHA::8}" >> $GITHUB_OUTPUT
 
+    - name: 设置镜像名称
+      id: image
+      run: |
+        # 如果设置了自定义镜像名称则使用，否则使用默认值（仓库名）
+        echo "NAME=${IMAGE_NAME_OVERRIDE:-$IMAGE_NAME}" >> $GITHUB_OUTPUT
+
     - name: 构建并推送镜像
       uses: docker/build-push-action@v5
       with:
         context: .
         push: true
         tags: |
-          ${{ secrets.ALIYUN_REGISTRY }}/${{ secrets.ALIYUN_NAME_SPACE }}/nextblog:latest
-          ${{ secrets.ALIYUN_REGISTRY }}/${{ secrets.ALIYUN_NAME_SPACE }}/nextblog:${{ steps.version.outputs.VERSION }}
+          ${{ secrets.ALIYUN_REGISTRY }}/${{ secrets.ALIYUN_NAME_SPACE }}/${{ steps.image.outputs.NAME }}:latest
+          ${{ secrets.ALIYUN_REGISTRY }}/${{ secrets.ALIYUN_NAME_SPACE }}/${{ steps.image.outputs.NAME }}:${{ steps.version.outputs.VERSION }}
         cache-from: type=local,src=/tmp/.buildx-cache
         cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
 
